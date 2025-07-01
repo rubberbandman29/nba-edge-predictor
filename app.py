@@ -93,29 +93,27 @@ if st.button("🚀 Go"):
             else:
                 st.info("❌ No clear edge.")
 
-            # -------------------------------
+            x_vals = np.arange(len(df))
+            labels = df['GAME_DATE'].dt.strftime('%b %d').tolist()
+
             # 📈 Graph 1: Points vs Sportsbook Line
-            # -------------------------------
-            st.subheader("📈 Recent Points vs Sportsbook Line")
+            st.subheader("📈 Game-by-Game Points vs Sportsbook Line")
             fig1, ax1 = plt.subplots()
-            ax1.plot(df['GAME_DATE'], df['PTS'], marker='o', label='Points')
+            ax1.plot(x_vals, df['PTS'], marker='o', label='Points')
             ax1.axhline(sportsbook_line, linestyle='--', color='red', label='Line')
+            ax1.set_xticks(x_vals)
+            ax1.set_xticklabels(labels, rotation=45, ha='right')
             ax1.set_ylabel("Points")
-            ax1.set_xlabel("Game Date")
+            ax1.set_xlabel("Game Number (Most Recent on Left)")
             ax1.set_title(f"{selected_player} – Last {len(df)} Games")
-            ax1.grid(True)
             ax1.legend()
-            date_labels = df['GAME_DATE'].dt.strftime('%b %d').tolist()
-            ax1.set_xticks(df['GAME_DATE'])
-            ax1.set_xticklabels(date_labels, rotation=45, ha='right')
-            for x, y in zip(df['GAME_DATE'], df['PTS']):
+            ax1.grid(True)
+            for x, y in zip(x_vals, df['PTS']):
                 ax1.annotate(f"{y:.0f}", (x, y), textcoords="offset points", xytext=(0, 6), ha='center', fontsize=8)
             fig1.tight_layout()
             st.pyplot(fig1)
 
-            # -------------------------------
             # 🧠 Graph 2: Minutes vs Points
-            # -------------------------------
             st.subheader("🧠 Minutes vs Points Correlation")
             fig2, ax2 = plt.subplots()
             ax2.scatter(df['Minutes'], df['PTS'], c='steelblue', edgecolors='black', s=100)
@@ -131,21 +129,18 @@ if st.button("🚀 Go"):
             fig2.tight_layout()
             st.pyplot(fig2)
 
-            # -------------------------------
-            # 📉 Graph 3: Points Minus Line
-            # -------------------------------
+            # 📉 Graph 3: Points Minus Line (Bar)
             st.subheader("📉 Game-by-Game Edge vs Line")
             fig3, ax3 = plt.subplots()
             errors = df['PTS'] - sportsbook_line
-            labels = df['GAME_DATE'].dt.strftime('%b %d').tolist()
-            tick_interval = max(1, len(labels) // 8)
-            tick_positions = np.arange(len(labels))[::tick_interval]
-            bars = ax3.bar(labels, errors, color=['green' if val > 0 else 'red' for val in errors])
+            colors = ['green' if val > 0 else 'red' for val in errors]
+            bars = ax3.bar(x_vals, errors, color=colors)
             ax3.axhline(0, linestyle='--', color='black')
+            ax3.set_xticks(x_vals)
+            ax3.set_xticklabels(labels, rotation=45, ha='right')
             ax3.set_ylabel("Points - Line")
+            ax3.set_xlabel("Game Number (Most Recent on Left)")
             ax3.set_title("Edge vs Line by Game")
-            ax3.set_xticks(tick_positions)
-            ax3.set_xticklabels([labels[i] for i in tick_positions], rotation=45, ha='right')
             for bar in bars:
                 height = bar.get_height()
                 ax3.annotate(f"{height:.1f}", xy=(bar.get_x() + bar.get_width() / 2, height),
