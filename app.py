@@ -3,7 +3,6 @@ import pandas as pd
 import time
 from nba_api.stats.static import players, teams
 from nba_api.stats.endpoints import playergamelog
-from sklearn.metrics import mean_squared_error
 import xgboost as xgb
 
 st.set_page_config(page_title="NBA Edge Predictor", layout="centered")
@@ -11,62 +10,60 @@ st.title("🏀 NBA Edge Predictor")
 
 with st.expander("ℹ️ How this model works"):
     st.markdown("""
-    - 🧠 Model: Trains an XGBoost regression model using player stats
-    - 📅 Season: Only pulls data from **2024–25**
-    - 🎯 Prediction: Based on average stats from recent games
-    - 🏀 Opponent Filter: Optional — shows matchup-specific edge
-    - ⚖️ Compares to sportsbook line to find potential value
+    - ✅ Trains an XGBoost model on **2024–25** regular season stats only
+    - 🔢 Uses features like minutes, FGA, AST, REB, TOV, rest days
+    - 🎯 Optional: Filter prediction by opponent matchup
+    - ⚖️ Compares prediction to sportsbook line to show value
     """)
 
-# -------------------------------
-# Load Teams and Players
-# -------------------------------
+# --------------------------------------
+# Load data
+# --------------------------------------
 @st.cache_data
-def get_teams():
-    return sorted(teams.get_teams(), key=lambda x: x['full_name'])
-
-@st.cache_data
-def get_active_players():
+def get_all_players():
     return players.get_active_players()
 
-teams_list = get_teams()
-players_list = get_active_players()
+@st.cache_data
+def get_all_teams():
+    return sorted(teams.get_teams(), key=lambda x: x['full_name'])
 
-team_names = [t['full_name'] for t in teams_list]
+player_list = get_all_players()
+team_list = get_all_teams()
+team_names = [t['full_name'] for t in team_list]
+
 selected_team = st.selectbox("Select a Team", team_names)
 
-team_abbr = next((t['abbreviation'] for t in teams_list if t['full_name'] == selected_team), None)
-
-# -------------------------------
-# Filter Players Based on 2024–25 Games with Team
-# -------------------------------
+# --------------------------------------
+# Filter players based on 2024–25 games
+# --------------------------------------
 @st.cache_data
-def get_team_players(team_abbr):
-    matched_players = []
-    for p in players_list:
+def get_team_players_by_gamelog(team_name):
+    matched = []
+    for p in player_list:
         try:
-            time.sleep(0.2)
+            time.sleep(0.3)  # To avoid rate limits
             gamelog = playergamelog.PlayerGameLog(player_id=p['id'], season='2024-25')
             df = gamelog.get_data_frames()[0]
-            if not df.empty and any(team_abbr in matchup for matchup in df['MATCHUP'].values):
-                matched_players.append({'name': p['full_name'], 'id': p['id']})
+            if not df.empty and any(team_name.split()[0] in m for m in df['MATCHUP']):
+                matched.append({'name': p['full_name'], 'id': p['id']})
         except:
             continue
-    return matched_players
+    return matched
 
-with st.spinner("Loading active players..."):
-    active_team_players = get_team_players(team_abbr)
+with st.spinner("Loading players..."):
+    players_found = get_team_players_by_gamelog(selected_team)
 
-if not active_team_players:
-    st.warning("No players found for this team yet in 2024–25.")
+if not players_found:
+    st.warning("No player game data found yet for this team in 2024–25.")
     st.stop()
 
-player_names = [p['name'] for p in active_team_players]
+player_names = sorted([p['name'] for p in players_found])
 selected_player = st.selectbox("Select a Player", player_names)
+selected_player_id = next(p['id'] for p in players_found if p['name'] == selected_player)
 
-# -------------------------------
-# Get Player Game Log (single season)
-# -------------------------------
+# --------------------------------------
+# Game log + model
+# --------------------------------------
 def get_player_games(player_id, max_games=30, opponent=None):
     try:
         gamelog = playergamelog.PlayerGameLog(player_id=player_id, season='2024-25')
@@ -92,11 +89,9 @@ def train_model(df):
     avg_input = pd.DataFrame([X.mean()])
     return model, avg_input
 
-# -------------------------------
-# Game & Opponent Filter UI
-# -------------------------------
-selected_player_id = next((p['id'] for p in active_team_players if p['name'] == selected_player), None)
-
+# --------------------------------------
+# UI filters
+# --------------------------------------
 st.subheader("📊 Game Filters")
 max_games = st.slider("Number of recent games to include", 5, 30, 15)
 
@@ -107,9 +102,9 @@ opp_filter = None if selected_opponent == "All Opponents" else selected_opponent
 
 sportsbook_line = st.number_input("📈 Sportsbook Line (PTS)", 0.0, 60.0, 22.5)
 
-# -------------------------------
-# Predict
-# -------------------------------
+# --------------------------------------
+# Prediction
+# --------------------------------------
 if st.button("Predict"):
     with st.spinner("Training model and predicting..."):
         df = get_player_games(selected_player_id, max_games=max_games, opponent=opp_filter)
