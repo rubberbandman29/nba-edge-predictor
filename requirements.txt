@@ -1,5 +1,6 @@
 streamlit
-nba_api
-scikit-learn
-xgboost
 pandas
+numpy
+matplotlib
+xgboost
+nba_api
