@@ -4,3 +4,4 @@ numpy
 matplotlib
 xgboost
 nba_api
+scikit-learn
