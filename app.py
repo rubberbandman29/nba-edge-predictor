@@ -105,8 +105,11 @@ if st.button("🚀 Go"):
             ax1.set_title(f"{selected_player} – Last {len(df)} Games")
             ax1.grid(True)
             ax1.legend()
+            date_labels = df['GAME_DATE'].dt.strftime('%b %d').tolist()
             ax1.set_xticks(df['GAME_DATE'])
-            ax1.set_xticklabels(df['GAME_DATE'].dt.strftime('%b %d'), rotation=45, ha='right')
+            ax1.set_xticklabels(date_labels, rotation=45, ha='right')
+            for x, y in zip(df['GAME_DATE'], df['PTS']):
+                ax1.annotate(f"{y:.0f}", (x, y), textcoords="offset points", xytext=(0, 6), ha='center', fontsize=8)
             fig1.tight_layout()
             st.pyplot(fig1)
 
@@ -122,6 +125,9 @@ if st.button("🚀 Go"):
             ax2.set_ylabel("Points")
             ax2.grid(True)
             ax2.legend()
+            for i in range(len(df)):
+                ax2.annotate(f"{df['PTS'].iloc[i]:.0f}", (df['Minutes'].iloc[i], df['PTS'].iloc[i]),
+                             textcoords="offset points", xytext=(0,6), ha='center', fontsize=8)
             fig2.tight_layout()
             st.pyplot(fig2)
 
@@ -131,14 +137,19 @@ if st.button("🚀 Go"):
             st.subheader("📉 Game-by-Game Edge vs Line")
             fig3, ax3 = plt.subplots()
             errors = df['PTS'] - sportsbook_line
-            labels = df['GAME_DATE'].dt.strftime('%b %d')
+            labels = df['GAME_DATE'].dt.strftime('%b %d').tolist()
             tick_interval = max(1, len(labels) // 8)
             tick_positions = np.arange(len(labels))[::tick_interval]
-            ax3.bar(labels, errors, color=['green' if val > 0 else 'red' for val in errors])
+            bars = ax3.bar(labels, errors, color=['green' if val > 0 else 'red' for val in errors])
             ax3.axhline(0, linestyle='--', color='black')
             ax3.set_ylabel("Points - Line")
             ax3.set_title("Edge vs Line by Game")
             ax3.set_xticks(tick_positions)
             ax3.set_xticklabels([labels[i] for i in tick_positions], rotation=45, ha='right')
+            for bar in bars:
+                height = bar.get_height()
+                ax3.annotate(f"{height:.1f}", xy=(bar.get_x() + bar.get_width() / 2, height),
+                             xytext=(0, 4 if height >= 0 else -10), textcoords="offset points",
+                             ha='center', va='bottom', fontsize=8)
             fig3.tight_layout()
             st.pyplot(fig3)
