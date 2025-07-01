@@ -94,7 +94,7 @@ if st.button("🚀 Go"):
                 st.info("❌ No clear edge.")
 
             # -------------------------------
-            # 📊 Graph 1: Points vs Line
+            # 📈 Graph 1: Points vs Sportsbook Line
             # -------------------------------
             st.subheader("📈 Recent Points vs Sportsbook Line")
             fig1, ax1 = plt.subplots()
@@ -105,10 +105,13 @@ if st.button("🚀 Go"):
             ax1.set_title(f"{selected_player} – Last {len(df)} Games")
             ax1.grid(True)
             ax1.legend()
+            ax1.set_xticks(df['GAME_DATE'])
+            ax1.set_xticklabels(df['GAME_DATE'].dt.strftime('%b %d'), rotation=45, ha='right')
+            fig1.tight_layout()
             st.pyplot(fig1)
 
             # -------------------------------
-            # 📊 Graph 2: Minutes vs Points (Scatter)
+            # 🧠 Graph 2: Minutes vs Points
             # -------------------------------
             st.subheader("🧠 Minutes vs Points Correlation")
             fig2, ax2 = plt.subplots()
@@ -119,17 +122,23 @@ if st.button("🚀 Go"):
             ax2.set_ylabel("Points")
             ax2.grid(True)
             ax2.legend()
+            fig2.tight_layout()
             st.pyplot(fig2)
 
             # -------------------------------
-            # 📊 Graph 3: Model Error Distribution
+            # 📉 Graph 3: Points Minus Line
             # -------------------------------
-            st.subheader("📉 Prediction Error vs Line")
+            st.subheader("📉 Game-by-Game Edge vs Line")
             fig3, ax3 = plt.subplots()
             errors = df['PTS'] - sportsbook_line
-            ax3.bar(df['GAME_DATE'].dt.strftime('%b %d'), errors, color=['green' if val > 0 else 'red' for val in errors])
+            labels = df['GAME_DATE'].dt.strftime('%b %d')
+            tick_interval = max(1, len(labels) // 8)
+            tick_positions = np.arange(len(labels))[::tick_interval]
+            ax3.bar(labels, errors, color=['green' if val > 0 else 'red' for val in errors])
             ax3.axhline(0, linestyle='--', color='black')
             ax3.set_ylabel("Points - Line")
-            ax3.set_xticklabels(df['GAME_DATE'].dt.strftime('%b %d'), rotation=45)
-            ax3.set_title("Game-by-Game Line Differential")
+            ax3.set_title("Edge vs Line by Game")
+            ax3.set_xticks(tick_positions)
+            ax3.set_xticklabels([labels[i] for i in tick_positions], rotation=45, ha='right')
+            fig3.tight_layout()
             st.pyplot(fig3)
